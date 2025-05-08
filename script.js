@@ -474,11 +474,12 @@ let animationId = null;
 let isAnimating = true;
 let isDragging = false;
 let previousMousePosition = { x: 0, y: 0 };
-let cube = null;
+let currentObject = null; // Rename dari cube ke currentObject untuk lebih general
 let scene, camera, renderer;
 let isScaling = false;
 let initialDistance = 0;
-let cubeScale = 1;
+let objectScale = 1;
+let currentShapeType = "cube"; // Menyimpan bentuk objek yang sedang aktif
 
 document.getElementById("open-3d").addEventListener("click", () => {
     // Tampilkan canvas 3D
@@ -513,15 +514,52 @@ document.getElementById("open-3d").addEventListener("click", () => {
             <p style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); 
                       color: white; padding: 10px; border-radius: 5px; font-size: 12px;">
                 Kontrol Keyboard:<br>
-                Arrow Keys: Geser cube<br>
+                Arrow Keys: Geser objek<br>
                 SHIFT + Drag: Ubah ukuran<br>
                 WASD: Geser tambahan
             </p>
         `;
         container.appendChild(controlsInfo);
+        
+        // Tambahkan selector untuk bentuk 3D
+        const shapeSelector = document.createElement("select");
+        shapeSelector.id = "shape-selector";
+        shapeSelector.style.position = "absolute";
+        shapeSelector.style.top = "50px";
+        shapeSelector.style.left = "10px";
+        shapeSelector.style.zIndex = "1001"; // Tingkatkan z-index
+        shapeSelector.innerHTML = `
+            <option value="cube">Cube</option>
+            <option value="pentagonal-prism">Prisma Pentagonal</option>
+        `;
+        container.appendChild(shapeSelector);
+        
+        // Event listener untuk perubahan bentuk
+        // Pindahkan event listener langsung setelah elemen ditambahkan ke DOM
+        shapeSelector.addEventListener("change", (e) => {
+            e.stopPropagation(); // Menghentikan propagasi event
+            changeShape(shapeSelector.value);
+        });
+        
+        // Tambahkan event untuk click pada selector untuk mencegah propagasi
+        shapeSelector.addEventListener("click", (e) => {
+            e.stopPropagation(); // Mencegah event menyebar ke container
+        });
+        
+        // Tambahkan event untuk mousedown pada selector untuk mencegah propagasi
+        shapeSelector.addEventListener("mousedown", (e) => {
+            e.stopPropagation(); // Mencegah event menyebar ke container dan memulai drag
+        });
     } else {
         document.getElementById("toggle-animation").style.display = "block";
         document.getElementById("controls-info").style.display = "block";
+        
+        // Dapatkan shape selector dan pastikan terlihat
+        const shapeSelector = document.getElementById("shape-selector");
+        if (shapeSelector) {
+            shapeSelector.style.display = "block";
+            shapeSelector.style.zIndex = "1001"; // Tingkatkan z-index
+        }
     }
   
     // Cegah inisialisasi ulang
@@ -534,24 +572,23 @@ document.getElementById("open-3d").addEventListener("click", () => {
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
   
-    const geometry = new THREE.BoxGeometry();
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-    cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+    // Buat cube sebagai bentuk default
+    createShape("cube");
   
     camera.position.z = 5;
   
-    // Mouse events untuk rotasi cube
-    container.addEventListener('mousedown', onMouseDown);
-    container.addEventListener('mousemove', onMouseMove);
-    container.addEventListener('mouseup', onMouseUp);
+    // Mouse events untuk rotasi objek - terapkan ke canvas saja
+    const canvas = renderer.domElement;
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('mousemove', onMouseMove);
+    canvas.addEventListener('mouseup', onMouseUp);
     
-    // Touch events untuk mobile
-    container.addEventListener('touchstart', onTouchStart, { passive: false });
-    container.addEventListener('touchmove', onTouchMove, { passive: false });
-    container.addEventListener('touchend', onTouchEnd);
+    // Touch events untuk mobile - terapkan ke canvas saja
+    canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+    canvas.addEventListener('touchend', onTouchEnd);
     
-    // Keyboard events untuk menggeser cube
+    // Keyboard events untuk menggeser objek
     window.addEventListener('keydown', onKeyDown);
     
     // Mulai animasi
@@ -561,9 +598,9 @@ document.getElementById("open-3d").addEventListener("click", () => {
 function animate() {
     animationId = requestAnimationFrame(animate);
     
-    if (isAnimating) {
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
+    if (isAnimating && currentObject) {
+        currentObject.rotation.x += 0.01;
+        currentObject.rotation.y += 0.01;
     }
     
     renderer.render(scene, camera);
@@ -593,7 +630,7 @@ function onMouseDown(event) {
 function onMouseMove(event) {
     event.preventDefault();
     
-    if (!isDragging || isAnimating) return;
+    if (!isDragging || isAnimating || !currentObject) return;
     
     const deltaMove = {
         x: event.clientX - previousMousePosition.x,
@@ -603,12 +640,12 @@ function onMouseMove(event) {
     if (event.shiftKey) {
         // Jika shift ditekan, lakukan scaling
         const scaleFactor = 1 + deltaMove.y * 0.01;
-        cube.scale.x *= scaleFactor;
-        cube.scale.y *= scaleFactor;
-        cube.scale.z *= scaleFactor;
-        cubeScale *= scaleFactor;
+        currentObject.scale.x *= scaleFactor;
+        currentObject.scale.y *= scaleFactor;
+        currentObject.scale.z *= scaleFactor;
+        objectScale *= scaleFactor;
     } else {
-        // Rotasi cube berdasarkan pergerakan mouse
+        // Rotasi objek berdasarkan pergerakan mouse
         const deltaRotationQuaternion = new THREE.Quaternion()
             .setFromEuler(new THREE.Euler(
                 deltaMove.y * 0.01,
@@ -617,7 +654,7 @@ function onMouseMove(event) {
                 'XYZ'
             ));
         
-        cube.quaternion.multiplyQuaternions(deltaRotationQuaternion, cube.quaternion);
+        currentObject.quaternion.multiplyQuaternions(deltaRotationQuaternion, currentObject.quaternion);
     }
     
     previousMousePosition = {
@@ -655,7 +692,7 @@ function onTouchStart(event) {
 function onTouchMove(event) {
     event.preventDefault();
     
-    if (isAnimating) return;
+    if (isAnimating || !currentObject) return;
     
     if (isDragging && event.touches.length === 1) {
         const deltaMove = {
@@ -663,7 +700,7 @@ function onTouchMove(event) {
             y: event.touches[0].clientY - previousMousePosition.y
         };
         
-        // Rotasi cube berdasarkan pergerakan touch
+        // Rotasi objek berdasarkan pergerakan touch
         const deltaRotationQuaternion = new THREE.Quaternion()
             .setFromEuler(new THREE.Euler(
                 deltaMove.y * 0.01,
@@ -672,7 +709,7 @@ function onTouchMove(event) {
                 'XYZ'
             ));
         
-        cube.quaternion.multiplyQuaternions(deltaRotationQuaternion, cube.quaternion);
+        currentObject.quaternion.multiplyQuaternions(deltaRotationQuaternion, currentObject.quaternion);
         
         previousMousePosition = {
             x: event.touches[0].clientX,
@@ -689,10 +726,10 @@ function onTouchMove(event) {
         initialDistance = newDistance;
         
         // Apply scaling
-        cube.scale.x *= scaleFactor;
-        cube.scale.y *= scaleFactor;
-        cube.scale.z *= scaleFactor;
-        cubeScale *= scaleFactor;
+        currentObject.scale.x *= scaleFactor;
+        currentObject.scale.y *= scaleFactor;
+        currentObject.scale.z *= scaleFactor;
+        objectScale *= scaleFactor;
     }
 }
 
@@ -709,9 +746,10 @@ function onTouchEnd(event) {
         };
     }
 }
+
 function onKeyDown(event) {
     // Hanya berfungsi jika animasi dihentikan
-    if (isAnimating) return;
+    if (isAnimating || !currentObject) return;
     
     const moveDistance = 0.1; // Jarak pergeseran (bisa diubah sesuai kebutuhan)
     
@@ -719,34 +757,120 @@ function onKeyDown(event) {
         case "ArrowLeft":
         case "a":
         case "A":
-            cube.position.x -= moveDistance;
+            currentObject.position.x -= moveDistance;
             break;
         case "ArrowRight":
         case "d":
         case "D":
-            cube.position.x += moveDistance;
+            currentObject.position.x += moveDistance;
             break;
         case "ArrowUp":
         case "w":
         case "W":
-            cube.position.y += moveDistance;
+            currentObject.position.y += moveDistance;
             break;
         case "ArrowDown":
         case "s":
         case "S":
-            cube.position.y -= moveDistance;
+            currentObject.position.y -= moveDistance;
             break;
         case "PageUp":
         case "q":
         case "Q":
-            cube.position.z -= moveDistance;
+            currentObject.position.z -= moveDistance;
             break;
         case "PageDown":
         case "e":
         case "E":
-            cube.position.z += moveDistance;
+            currentObject.position.z += moveDistance;
             break;
     }
+}
+
+function createShape(shapeType) {
+    // Hapus objek sebelumnya jika sudah ada
+    if (currentObject) {
+        scene.remove(currentObject);
+    }
+    
+    let geometry;
+    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+    
+    if (shapeType === "cube") {
+        geometry = new THREE.BoxGeometry();
+    } else if (shapeType === "pentagonal-prism") {
+        // Buat prisma pentagonal
+        geometry = createPentagonalPrismGeometry();
+    }
+    
+    currentObject = new THREE.Mesh(geometry, material);
+    scene.add(currentObject);
+    currentShapeType = shapeType;
+    
+    return currentObject;
+}
+
+function createPentagonalPrismGeometry() {
+    // Buat geometri prisma pentagonal
+    const geometry = new THREE.Geometry();
+    
+    // Radius pentagon
+    const radius = 1;
+    const height = 2;
+    
+    // Titik-titik pentagon di bagian bawah (y = -height/2)
+    for (let i = 0; i < 5; i++) {
+        const angle = (Math.PI * 2 / 5) * i;
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+        geometry.vertices.push(new THREE.Vector3(x, -height/2, z));
+    }
+    
+    // Titik-titik pentagon di bagian atas (y = height/2)
+    for (let i = 0; i < 5; i++) {
+        const angle = (Math.PI * 2 / 5) * i;
+        const x = radius * Math.cos(angle);
+        const z = radius * Math.sin(angle);
+        geometry.vertices.push(new THREE.Vector3(x, height/2, z));
+    }
+    
+    // Faces untuk pentagon bawah
+    geometry.faces.push(new THREE.Face3(0, 1, 2));
+    geometry.faces.push(new THREE.Face3(0, 2, 3));
+    geometry.faces.push(new THREE.Face3(0, 3, 4));
+    
+    // Faces untuk pentagon atas
+    geometry.faces.push(new THREE.Face3(5, 7, 6));
+    geometry.faces.push(new THREE.Face3(5, 8, 7));
+    geometry.faces.push(new THREE.Face3(5, 9, 8));
+    
+    // Faces untuk sisi-sisi prisma
+    for (let i = 0; i < 5; i++) {
+        const j = (i + 1) % 5;
+        
+        // Sisi terdiri dari dua segitiga
+        geometry.faces.push(new THREE.Face3(i, j, i + 5));
+        geometry.faces.push(new THREE.Face3(j, j + 5, i + 5));
+    }
+    
+    geometry.computeFaceNormals();
+    
+    return geometry;
+}
+
+function changeShape(shapeType) {
+    // Simpan posisi dan rotasi objek sebelumnya
+    const oldPosition = currentObject ? currentObject.position.clone() : new THREE.Vector3(0, 0, 0);
+    const oldRotation = currentObject ? currentObject.rotation.clone() : new THREE.Euler(0, 0, 0);
+    const oldScale = currentObject ? currentObject.scale.clone() : new THREE.Vector3(1, 1, 1);
+    
+    // Buat objek baru dengan bentuk yang dipilih
+    createShape(shapeType);
+    
+    // Terapkan posisi dan rotasi dari objek sebelumnya
+    currentObject.position.copy(oldPosition);
+    currentObject.rotation.copy(oldRotation);
+    currentObject.scale.copy(oldScale);
 }
 
 document.getElementById("back-to-2d").addEventListener("click", () => {
