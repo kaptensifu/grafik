@@ -1,146 +1,169 @@
-/* Import Google font - Poppins */
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
-*{
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Poppins', sans-serif;
-}
-body{
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: #6DD400;
-}
-.container{
-  display: flex;
-  width: 100%;
-  gap: 10px;
-  padding: 10px;
-  max-width: 1050px;
-}
-section{
-  background: #fff;
-  border-radius: 7px;
-}
-.tools-board{
-  width: 210px;
-  padding: 15px 22px 0;
-}
-.tools-board .row{
-  margin-bottom: 20px;
-}
-.row .options{
-  list-style: none;
-  margin: 10px 0 0 5px;
-}
-.row .options .option{
-  display: flex;
-  cursor: pointer;
-  align-items: center;
-  margin-bottom: 10px;
-}
-.option:is(:hover, .active) img{
-  filter: invert(17%) sepia(90%) saturate(3000%) hue-rotate(900deg) brightness(100%) contrast(100%);
-}
-.option :where(span, label){
-  color: #5A6168;
-  cursor: pointer;
-  padding-left: 10px;
-}
-.option:is(:hover, .active) :where(span, label){
-  color: #6DD400;
-}
-.option #fill-color{
-  cursor: pointer;
-  height: 14px;
-  width: 14px;
-}
-#fill-color:checked ~ label{
-  color: #6DD400;
-}
-.option #size-slider{
-  width: 100%;
-  height: 5px;
-  margin-top: 10px;
-}
-.colors .options{
-  display: flex;
-  justify-content: space-between;
-}
-.colors .option{
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  margin-top: 3px;
-  position: relative;
-}
-.colors .option:nth-child(1){
-  background-color: #fff;
-  border: 1px solid #bfbfbf;
-}
-.colors .option:nth-child(2){
-  background-color: #000;
-}
-.colors .option:nth-child(3){
-  background-color: #E02020;
-}
-.colors .option:nth-child(4){
-  background-color: #6DD400;
-}
-.colors .option:nth-child(5){
-  background-color: #4A98F7;
-}
-.colors .option.selected::before{
-  position: absolute;
-  content: "";
-  top: 50%;
-  left: 50%;
-  height: 12px;
-  width: 12px;
-  background: inherit;
-  border-radius: inherit;
-  border: 2px solid #fff;
-  transform: translate(-50%, -50%);
-}
-.colors .option:first-child.selected::before{
-  border-color: #ccc;
-}
-.option #color-picker{
-  opacity: 0;
-  cursor: pointer;
-}
-.buttons button{
-  width: 100%;
-  color: #fff;
-  border: none;
-  outline: none;
-  padding: 11px 0;
-  font-size: 0.9rem;
-  margin-bottom: 13px;
-  background: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.buttons .clear-canvas{
-  color: #6C757D;
-  border: 1px solid #6C757D;
-  transition: all 0.3s ease;
-}
-.clear-canvas:hover{
-  color: #fff;
-  background: #6C757D;
-}
-.buttons .save-img{
-  background: #6DD400;
-  border: 1px solid #6DD400;
-}
-.drawing-board{
-  flex: 1;
-  overflow: hidden;
-}
-.drawing-board canvas{
-  width: 100%;
-  height: 100%;
-}
+  /* Import Google font - Poppins */
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+  *{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+  }
+  body{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 75vh;
+    background: #6DD400;
+  }
+  .container {
+    display: flex;
+    flex-direction: column; /* Mengatur arah flex menjadi kolom */
+    width: 100%;
+    gap: 5px;
+    padding: 10px;
+    max-width: 1250px; /* Memperlebar container */
+  }
+  section{
+    background: #fff;
+    border-radius: 10px;
+  }
+  .tools-board {
+    width: 100%; /* Mengatur lebar tools-board menjadi 100% */
+    padding: 5px 22px;
+    display: flex; /* Menggunakan flexbox */
+    flex-wrap: wrap; /* Membungkus elemen jika diperlukan */
+    justify-content: space-between; /* Menyebar elemen secara horizontal */
+    
+  }
+  .tools-board .row {
+    display: flex; /* Menggunakan flexbox untuk menyusun elemen secara horizontal */
+    align-items: center; /* Menyelaraskan item secara vertikal */
+     /* Mengurangi jarak di bawah setiap row */
+    width: 100%; /* Memastikan row mengambil lebar penuh */
+    justify-content: space-between; /* Menyebar item secara horizontal */
+  }
+  .row .options {
+    list-style: none;
+    margin: 0; /* Menghapus margin */
+    display: flex; /* Menggunakan flexbox */
+    justify-content: flex-start; /* Menyebar item dari kiri */
+    flex-wrap: wrap; /* Membungkus item jika diperlukan */
+    width: 100%; /* Memastikan options mengambil lebar penuh */
+  }
+
+  .row .options .option {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    margin-right: 15px; /* Menambahkan jarak antar opsi */
+    margin-bottom: 10px; /* Menambahkan jarak di bawah opsi */
+  }
+  .row .title {
+    margin-right: 20px; /* Menambahkan jarak antara label dan opsi */
+    font-weight: 500; /* Menebalkan teks label */
+  }
+  .option:is(:hover, .active) img{
+    filter: invert(17%) sepia(90%) saturate(3000%) hue-rotate(900deg) brightness(100%) contrast(100%);
+  }
+  .option :where(span, label){
+    color: #5A6168;
+    cursor: pointer;
+    padding-left: 10px;
+  }
+  .option:is(:hover, .active) :where(span, label){
+    color: #6DD400;
+  }
+  .option #fill-color{
+    cursor: pointer;
+    height: 14px;
+    width: 14px;
+  }
+  #fill-color:checked ~ label{
+    color: #6DD400;
+  }
+  .option #size-slider{
+    width: 100%;
+    height: 5px;
+    margin-top: 10px;
+  }
+  .colors .options{
+    display: flex;
+    justify-content: space-between;
+  }
+  .colors .option{
+    height: 20px;
+    width: 20px;
+    border-radius: 50%;
+    margin-top: 3px;
+    position: relative;
+  }
+  .colors .option:nth-child(1){
+    background-color: #fff;
+    border: 1px solid #bfbfbf;
+  }
+  .colors .option:nth-child(2){
+    background-color: #000;
+  }
+  .colors .option:nth-child(3){
+    background-color: #E02020;
+  }
+  .colors .option:nth-child(4){
+    background-color: #6DD400;
+  }
+  .colors .option:nth-child(5){
+    background-color: #4A98F7;
+  }
+  .colors .option.selected::before{
+    position: absolute;
+    content: "";
+    top: 50%;
+    left: 50%;
+    height: 12px;
+    width: 12px;
+    background: inherit;
+    border-radius: inherit;
+    border: 2px solid #fff;
+    transform: translate(-50%, -50%);
+  }
+  .colors .option:first-child.selected::before{
+    border-color: #ccc;
+  }
+  .option #color-picker{
+    opacity: 0;
+    cursor: pointer;
+  }
+  .buttons button{
+    width: 100%;
+    color: #fff;
+    border: none;
+    outline: none;
+    padding: 5px 0;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    background: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .buttons .clear-canvas{
+    color: #6C757D;
+    border: 1px solid #6C757D;
+    transition: all 0.3s ease;
+  }
+  .clear-canvas:hover{
+    color: #fff;
+    background: #6C757D;
+  }
+  .buttons .save-img{
+    background: #6DD400;
+    border: 1px solid #6DD400;
+  }
+  .drawing-board {
+    flex: 1; /* Memastikan area menggambar mengambil sisa ruang */
+    overflow: hidden;
+    position: relative; /* Menambahkan posisi relatif untuk kontrol lebih lanjut */
+     /* Menambahkan jarak di atas drawing board */
+  }
+  
+  .drawing-board canvas {
+    width: 100%;
+    height: 750px;
+    border: 1px solid #ccc; /* Menambahkan border untuk canvas agar terlihat lebih jelas */
+  }
