@@ -505,8 +505,23 @@ document.getElementById("open-3d").addEventListener("click", () => {
             toggleAnimation();
             toggleAnimBtn.textContent = isAnimating ? "Stop Animation" : "Start Animation";
         });
+        
+        // Menambahkan info kontrol keyboard
+        const controlsInfo = document.createElement("div");
+        controlsInfo.id = "controls-info";
+        controlsInfo.innerHTML = `
+            <p style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); 
+                      color: white; padding: 10px; border-radius: 5px; font-size: 12px;">
+                Kontrol Keyboard:<br>
+                Arrow Keys: Geser cube<br>
+                SHIFT + Drag: Ubah ukuran<br>
+                WASD: Geser tambahan
+            </p>
+        `;
+        container.appendChild(controlsInfo);
     } else {
         document.getElementById("toggle-animation").style.display = "block";
+        document.getElementById("controls-info").style.display = "block";
     }
   
     // Cegah inisialisasi ulang
@@ -535,6 +550,9 @@ document.getElementById("open-3d").addEventListener("click", () => {
     container.addEventListener('touchstart', onTouchStart, { passive: false });
     container.addEventListener('touchmove', onTouchMove, { passive: false });
     container.addEventListener('touchend', onTouchEnd);
+    
+    // Keyboard events untuk menggeser cube
+    window.addEventListener('keydown', onKeyDown);
     
     // Mulai animasi
     animate();
@@ -691,16 +709,61 @@ function onTouchEnd(event) {
         };
     }
 }
+function onKeyDown(event) {
+    // Hanya berfungsi jika animasi dihentikan
+    if (isAnimating) return;
+    
+    const moveDistance = 0.1; // Jarak pergeseran (bisa diubah sesuai kebutuhan)
+    
+    switch(event.key) {
+        case "ArrowLeft":
+        case "a":
+        case "A":
+            cube.position.x -= moveDistance;
+            break;
+        case "ArrowRight":
+        case "d":
+        case "D":
+            cube.position.x += moveDistance;
+            break;
+        case "ArrowUp":
+        case "w":
+        case "W":
+            cube.position.y += moveDistance;
+            break;
+        case "ArrowDown":
+        case "s":
+        case "S":
+            cube.position.y -= moveDistance;
+            break;
+        case "PageUp":
+        case "q":
+        case "Q":
+            cube.position.z -= moveDistance;
+            break;
+        case "PageDown":
+        case "e":
+        case "E":
+            cube.position.z += moveDistance;
+            break;
+    }
+}
 
 document.getElementById("back-to-2d").addEventListener("click", () => {
     document.querySelector(".drawing-board").style.display = "block";
     document.getElementById("three-canvas-container").style.display = "none";
     document.getElementById("back-to-2d").style.display = "none";
     
-    // Sembunyikan tombol toggle animasi
+    // Sembunyikan tombol toggle animasi dan info kontrol
     const toggleAnimBtn = document.getElementById("toggle-animation");
     if (toggleAnimBtn) toggleAnimBtn.style.display = "none";
     
+    const controlsInfo = document.getElementById("controls-info");
+    if (controlsInfo) controlsInfo.style.display = "none";
+    
     // Reset status animasi
     isAnimating = true;
+    
+    // Hapus event listener keyboard saat kembali ke 2D
+    window.removeEventListener('keydown', onKeyDown);
 });
