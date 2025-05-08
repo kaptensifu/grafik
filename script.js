@@ -469,47 +469,238 @@ addTextBtn.addEventListener("click", () => {
     }
 });
 
+// Variabel global untuk Three.js
+let animationId = null;
+let isAnimating = true;
+let isDragging = false;
+let previousMousePosition = { x: 0, y: 0 };
+let cube = null;
+let scene, camera, renderer;
+let isScaling = false;
+let initialDistance = 0;
+let cubeScale = 1;
+
 document.getElementById("open-3d").addEventListener("click", () => {
     // Tampilkan canvas 3D
     document.querySelector(".drawing-board").style.display = "none";
     const container = document.getElementById("three-canvas-container");
     container.style.display = "block";
   
-    // Tampilkan tombol kembali ke 2D
+    // Tampilkan tombol kembali ke 2D dan stop animation
     document.getElementById("back-to-2d").style.display = "block";
+    
+    // Buat tombol toggle animasi jika belum ada
+    if (!document.getElementById("toggle-animation")) {
+        const toggleAnimBtn = document.createElement("button");
+        toggleAnimBtn.id = "toggle-animation";
+        toggleAnimBtn.textContent = "Stop Animation";
+        toggleAnimBtn.style.position = "absolute";
+        toggleAnimBtn.style.top = "10px";
+        toggleAnimBtn.style.left = "10px";
+        toggleAnimBtn.style.zIndex = "1000";
+        container.appendChild(toggleAnimBtn);
+        
+        // Event listener untuk toggle animasi
+        toggleAnimBtn.addEventListener("click", () => {
+            toggleAnimation();
+            toggleAnimBtn.textContent = isAnimating ? "Stop Animation" : "Start Animation";
+        });
+    } else {
+        document.getElementById("toggle-animation").style.display = "block";
+    }
   
     // Cegah inisialisasi ulang
-    if (container.hasChildNodes()) return;
+    if (container.querySelector("canvas")) return;
   
     // Inisialisasi Three.js
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer();
     renderer.setSize(container.clientWidth, container.clientHeight);
     container.appendChild(renderer.domElement);
   
     const geometry = new THREE.BoxGeometry();
     const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
-    const cube = new THREE.Mesh(geometry, material);
+    cube = new THREE.Mesh(geometry, material);
     scene.add(cube);
   
     camera.position.z = 5;
   
-    function animate() {
-      requestAnimationFrame(animate);
-      cube.rotation.x += 0.01;
-      cube.rotation.y += 0.01;
-      renderer.render(scene, camera);
-    }
+    // Mouse events untuk rotasi cube
+    container.addEventListener('mousedown', onMouseDown);
+    container.addEventListener('mousemove', onMouseMove);
+    container.addEventListener('mouseup', onMouseUp);
+    
+    // Touch events untuk mobile
+    container.addEventListener('touchstart', onTouchStart, { passive: false });
+    container.addEventListener('touchmove', onTouchMove, { passive: false });
+    container.addEventListener('touchend', onTouchEnd);
+    
+    // Mulai animasi
     animate();
-  });
-  
-  
-  document.getElementById("back-to-2d").addEventListener("click", () => {
+});
+
+function animate() {
+    animationId = requestAnimationFrame(animate);
+    
+    if (isAnimating) {
+        cube.rotation.x += 0.01;
+        cube.rotation.y += 0.01;
+    }
+    
+    renderer.render(scene, camera);
+}
+
+function toggleAnimation() {
+    isAnimating = !isAnimating;
+    
+    if (!isAnimating && animationId) {
+        // Tetap jalankan render loop tapi tanpa rotasi
+        // Jangan cancelAnimationFrame karena kita masih butuh untuk update saat interaksi mouse
+    }
+}
+
+function onMouseDown(event) {
+    event.preventDefault();
+    
+    if (isAnimating) return; // Hanya bisa digerakkan jika animasi berhenti
+    
+    isDragging = true;
+    previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+    };
+}
+
+function onMouseMove(event) {
+    event.preventDefault();
+    
+    if (!isDragging || isAnimating) return;
+    
+    const deltaMove = {
+        x: event.clientX - previousMousePosition.x,
+        y: event.clientY - previousMousePosition.y
+    };
+    
+    if (event.shiftKey) {
+        // Jika shift ditekan, lakukan scaling
+        const scaleFactor = 1 + deltaMove.y * 0.01;
+        cube.scale.x *= scaleFactor;
+        cube.scale.y *= scaleFactor;
+        cube.scale.z *= scaleFactor;
+        cubeScale *= scaleFactor;
+    } else {
+        // Rotasi cube berdasarkan pergerakan mouse
+        const deltaRotationQuaternion = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(
+                deltaMove.y * 0.01,
+                deltaMove.x * 0.01,
+                0,
+                'XYZ'
+            ));
+        
+        cube.quaternion.multiplyQuaternions(deltaRotationQuaternion, cube.quaternion);
+    }
+    
+    previousMousePosition = {
+        x: event.clientX,
+        y: event.clientY
+    };
+}
+
+function onMouseUp() {
+    isDragging = false;
+}
+
+// Touch event handlers untuk mobile
+function onTouchStart(event) {
+    event.preventDefault();
+    
+    if (isAnimating) return;
+    
+    if (event.touches.length === 1) {
+        // Single touch for rotation
+        isDragging = true;
+        previousMousePosition = {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY
+        };
+    } else if (event.touches.length === 2) {
+        // Two fingers for pinch-to-scale
+        isScaling = true;
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        initialDistance = Math.sqrt(dx * dx + dy * dy);
+    }
+}
+
+function onTouchMove(event) {
+    event.preventDefault();
+    
+    if (isAnimating) return;
+    
+    if (isDragging && event.touches.length === 1) {
+        const deltaMove = {
+            x: event.touches[0].clientX - previousMousePosition.x,
+            y: event.touches[0].clientY - previousMousePosition.y
+        };
+        
+        // Rotasi cube berdasarkan pergerakan touch
+        const deltaRotationQuaternion = new THREE.Quaternion()
+            .setFromEuler(new THREE.Euler(
+                deltaMove.y * 0.01,
+                deltaMove.x * 0.01,
+                0,
+                'XYZ'
+            ));
+        
+        cube.quaternion.multiplyQuaternions(deltaRotationQuaternion, cube.quaternion);
+        
+        previousMousePosition = {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY
+        };
+    } else if (isScaling && event.touches.length === 2) {
+        // Calculate new distance
+        const dx = event.touches[0].clientX - event.touches[1].clientX;
+        const dy = event.touches[0].clientY - event.touches[1].clientY;
+        const newDistance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate scale factor
+        const scaleFactor = newDistance / initialDistance;
+        initialDistance = newDistance;
+        
+        // Apply scaling
+        cube.scale.x *= scaleFactor;
+        cube.scale.y *= scaleFactor;
+        cube.scale.z *= scaleFactor;
+        cubeScale *= scaleFactor;
+    }
+}
+
+function onTouchEnd(event) {
+    if (event.touches.length === 0) {
+        isDragging = false;
+        isScaling = false;
+    } else if (event.touches.length === 1) {
+        isScaling = false;
+        // Update position for single touch
+        previousMousePosition = {
+            x: event.touches[0].clientX,
+            y: event.touches[0].clientY
+        };
+    }
+}
+
+document.getElementById("back-to-2d").addEventListener("click", () => {
     document.querySelector(".drawing-board").style.display = "block";
     document.getElementById("three-canvas-container").style.display = "none";
     document.getElementById("back-to-2d").style.display = "none";
-  });
-  
- 
-  
+    
+    // Sembunyikan tombol toggle animasi
+    const toggleAnimBtn = document.getElementById("toggle-animation");
+    if (toggleAnimBtn) toggleAnimBtn.style.display = "none";
+    
+    // Reset status animasi
+    isAnimating = true;
+});
