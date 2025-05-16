@@ -1,3 +1,4 @@
+
 // Variabel global untuk Three.js
 let animationId = null;
 let isAnimating = true;
@@ -60,6 +61,8 @@ document.getElementById("open-3d").addEventListener("click", () => {
         shapeSelector.innerHTML = `
             <option value="cube">Cube</option>
             <option value="pentagonal-prism">Prisma Pentagonal</option>
+            <option value="hexagonal-pyramid">Hexagonal Pyramid</option>
+            <option value="diamond">Diamond</option>
         `;
         container.appendChild(shapeSelector);
         
@@ -97,9 +100,22 @@ document.getElementById("open-3d").addEventListener("click", () => {
     // Inisialisasi Three.js
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
-    renderer = new THREE.WebGLRenderer();
+    renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setClearColor(0xf0f0f0, 1); // Warna background light gray
     container.appendChild(renderer.domElement);
+    
+    // Tambahkan pencahayaan untuk material PhongMaterial
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.5); // soft white light
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1).normalize();
+    scene.add(directionalLight);
+    
+    const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight2.position.set(-1, -1, -1).normalize();
+    scene.add(directionalLight2);
   
     // Buat cube sebagai bentuk default
     createShape("cube");
@@ -323,16 +339,59 @@ function createShape(shapeType) {
     }
     
     let geometry;
-    const material = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+    // Buat material transparan dengan warna berbeda untuk tiap bentuk
+    let color, opacity = 0.7;
     
-    if (shapeType === "cube") {
-        geometry = new THREE.BoxGeometry();
-    } else if (shapeType === "pentagonal-prism") {
-        // Buat prisma pentagonal
-        geometry = createPentagonalPrismGeometry();
+    switch(shapeType) {
+        case "cube":
+            geometry = new THREE.BoxGeometry();
+            color = 0x3498db; // Biru
+            break;
+        case "pentagonal-prism":
+            geometry = createPentagonalPrismGeometry();
+            color = 0xe74c3c; // Merah
+            break;
+        case "hexagonal-pyramid":
+            geometry = createHexagonalPyramidGeometry();
+            color = 0x2ecc71; // Hijau
+            break;
+        case "diamond":
+            geometry = createDiamondGeometry();
+            color = 0x9b59b6; // Ungu
+            opacity = 0.6; // Diamond sedikit lebih transparan
+            break;
+        default:
+            geometry = new THREE.BoxGeometry();
+            color = 0xffffff; // Putih (default)
     }
     
-    currentObject = new THREE.Mesh(geometry, material);
+    // Buat material transparan
+    const material = new THREE.MeshPhongMaterial({ 
+        color: color, 
+        transparent: true, 
+        opacity: opacity,
+        side: THREE.DoubleSide, // Render kedua sisi
+        wireframe: false,
+        specular: 0x111111,
+        shininess: 50
+    });
+    
+    // Tambahkan outline wireframe
+    const wireframeMaterial = new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        wireframe: true,
+        transparent: true
+    });
+    
+    // Buat mesh untuk objek utama
+    currentObject = new THREE.Object3D();
+    const mainMesh = new THREE.Mesh(geometry, material);
+    const wireframeMesh = new THREE.Mesh(geometry, wireframeMaterial);
+    
+    // Tambahkan kedua mesh ke group
+    currentObject.add(mainMesh);
+    currentObject.add(wireframeMesh);
+    
     scene.add(currentObject);
     currentShapeType = shapeType;
     
@@ -385,6 +444,89 @@ function createPentagonalPrismGeometry() {
     geometry.computeFaceNormals();
     
     return geometry;
+}
+
+function createHexagonalPyramidGeometry() {
+    // Gunakan BufferGeometry untuk menghindari masalah dengan THREE.Geometry
+    // yang sudah deprecated di versi Three.js yang lebih baru
+    
+    // Untuk versi Three.js yang masih menggunakan Geometry:
+    if (THREE.ConeGeometry) {
+        // Gunakan ConeGeometry dengan 6 segmen untuk membuat piramida hexagonal
+        return new THREE.ConeGeometry(1, 1.5, 6);
+    } else {
+        // Cara manual jika ConeGeometry tidak tersedia
+        const geometry = new THREE.Geometry();
+        
+        // Radius hexagon pada dasar
+        const radius = 1;
+        const height = 1.5;
+        
+        // Titik puncak piramida
+        geometry.vertices.push(new THREE.Vector3(0, height, 0));  // Vertex 0 (puncak)
+        
+        // Titik-titik hexagon pada dasar (y = 0)
+        for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI * 2 / 6) * i;
+            const x = radius * Math.cos(angle);
+            const z = radius * Math.sin(angle);
+            geometry.vertices.push(new THREE.Vector3(x, 0, z));  // Vertex 1-6 (dasar)
+        }
+        
+        // Faces untuk dasar hexagon (menggunakan triangulasi fan)
+        // Gunakan vertex central untuk memudahkan triangulasi
+        geometry.vertices.push(new THREE.Vector3(0, 0, 0));  // Vertex 7 (center of base)
+        
+        for (let i = 1; i <= 6; i++) {
+            const j = i % 6 + 1;
+            geometry.faces.push(new THREE.Face3(7, i, j));
+        }
+        
+        // Faces untuk sisi piramida (dari puncak ke masing-masing sisi hexagon)
+        for (let i = 1; i <= 6; i++) {
+            const j = i % 6 + 1;
+            geometry.faces.push(new THREE.Face3(0, i, j));
+        }
+        
+        geometry.computeFaceNormals();
+        return geometry;
+    }
+}
+
+function createDiamondGeometry() {
+    // Cara simpel: Gunakan OctahedronGeometry dari Three.js
+    // Octahedron adalah bentuk dasar dari diamond/berlian
+    
+    // Periksa apakah OctahedronGeometry tersedia
+    if (THREE.OctahedronGeometry) {
+        return new THREE.OctahedronGeometry(1);
+    } else {
+        // Implementasi manual jika OctahedronGeometry tidak tersedia
+        const geometry = new THREE.Geometry();
+        
+        // Titik-titik utama diamond (bentuk oktahedron)
+        geometry.vertices.push(new THREE.Vector3(0, 1, 0));    // Atas
+        geometry.vertices.push(new THREE.Vector3(0, -1, 0));   // Bawah
+        geometry.vertices.push(new THREE.Vector3(1, 0, 0));    // Kanan
+        geometry.vertices.push(new THREE.Vector3(-1, 0, 0));   // Kiri
+        geometry.vertices.push(new THREE.Vector3(0, 0, 1));    // Depan
+        geometry.vertices.push(new THREE.Vector3(0, 0, -1));   // Belakang
+        
+        // Faces segitiga untuk bagian atas
+        geometry.faces.push(new THREE.Face3(0, 2, 4));
+        geometry.faces.push(new THREE.Face3(0, 4, 3));
+        geometry.faces.push(new THREE.Face3(0, 3, 5));
+        geometry.faces.push(new THREE.Face3(0, 5, 2));
+        
+        // Faces segitiga untuk bagian bawah
+        geometry.faces.push(new THREE.Face3(1, 4, 2));
+        geometry.faces.push(new THREE.Face3(1, 3, 4));
+        geometry.faces.push(new THREE.Face3(1, 5, 3));
+        geometry.faces.push(new THREE.Face3(1, 2, 5));
+        
+        geometry.computeFaceNormals();
+        return geometry;
+    }
 }
 
 function changeShape(shapeType) {
