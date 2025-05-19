@@ -573,11 +573,9 @@ addTextBtn.addEventListener("click", () => {
 });
 rotateLeftBtn.addEventListener("click", () => {
     if (currentShape) {
-        // Pastikan rotation tidak undefined
         if (currentShape.rotation === undefined) {
             currentShape.rotation = 0;
         }
-        // Rotate 30 derajat ke kiri (counterclockwise)
         currentShape.rotation -= 30;
         drawAllShapes();
     }
@@ -585,12 +583,38 @@ rotateLeftBtn.addEventListener("click", () => {
 
 rotateRightBtn.addEventListener("click", () => {
     if (currentShape) {
-        // Pastikan rotation tidak undefined
         if (currentShape.rotation === undefined) {
             currentShape.rotation = 0;
         }
-        // Rotate 30 derajat ke kanan (clockwise)
         currentShape.rotation += 30;
         drawAllShapes();
     }
+});
+
+// Buat Panah
+document.addEventListener("keydown", (event) => {
+    if (!currentShape) return;
+
+    const step = 10;
+
+    switch (event.key) {
+        case "ArrowLeft":
+            if (currentShape.x !== undefined) currentShape.x -= step;
+            if (currentShape.x2 !== undefined) currentShape.x2 -= step;
+            break;
+        case "ArrowRight":
+            if (currentShape.x !== undefined) currentShape.x += step;
+            if (currentShape.x2 !== undefined) currentShape.x2 += step;
+            break;
+        case "ArrowUp":
+            if (currentShape.y !== undefined) currentShape.y -= step;
+            if (currentShape.y2 !== undefined) currentShape.y2 -= step;
+            break;
+        case "ArrowDown":
+            if (currentShape.y !== undefined) currentShape.y += step;
+            if (currentShape.y2 !== undefined) currentShape.y2 += step;
+            break;
+    }
+
+    drawAllShapes();
 });
