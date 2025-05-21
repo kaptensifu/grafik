@@ -1,3 +1,5 @@
+// Modify script2D.js to add dashed outline for selected objects
+
 const canvas = document.querySelector("canvas"),
     toolBtns = document.querySelectorAll(".tool"),
     fillColor = document.querySelector("#fill-color"),
@@ -210,6 +212,71 @@ function drawAllShapes() {
             } else if (shape.type === "text") {
                 ctx.fillRect(shape.x - 5, shape.y - shape.fontSize, 10, 10);
             }
+
+            // Tambahkan kotak putus-putus di sekitar objek yang dipilih
+            ctx.strokeStyle = "#0078D7"; // Warna biru Microsoft
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 3]); // Pola garis putus-putus
+
+            // Gambar kotak putus-putus sesuai tipe shape
+            if (shape.type === "diamond") {
+                const halfWidth = shape.width / 2 + 10;
+                const halfHeight = shape.height / 2 + 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(shape.x, shape.y - halfHeight); // Titik atas
+                ctx.lineTo(shape.x + halfWidth, shape.y); // Titik kanan
+                ctx.lineTo(shape.x, shape.y + halfHeight); // Titik bawah
+                ctx.lineTo(shape.x - halfWidth, shape.y); // Titik kiri
+                ctx.closePath();
+                ctx.stroke();
+            } else if (shape.type === "hexagon") {
+                const radius = shape.radius + 10;
+                ctx.beginPath();
+                for (let i = 0; i < 6; i++) {
+                    const angle = (Math.PI / 3) * i;
+                    const xPos = shape.x + radius * Math.cos(angle);
+                    const yPos = shape.y + radius * Math.sin(angle);
+                    
+                    if (i === 0) {
+                        ctx.moveTo(xPos, yPos);
+                    } else {
+                        ctx.lineTo(xPos, yPos);
+                    }
+                }
+                ctx.closePath();
+                ctx.stroke();
+            } else if (shape.type === "right-triangle") {
+                ctx.beginPath();
+                ctx.moveTo(shape.x - 10, shape.y - 10); // Titik awal
+                ctx.lineTo(shape.x2 + 10, shape.y2 + 10); // Titik kedua
+                ctx.lineTo(shape.x - 10, shape.y2 + 10); // Titik ketiga
+                ctx.closePath();
+                ctx.stroke();
+            } else if (shape.type === "text") {
+                ctx.font = `${shape.fontSize}px Arial`;
+                const textWidth = ctx.measureText(shape.text).width;
+                ctx.strokeRect(shape.x - 10, shape.y - shape.fontSize - 10, textWidth + 20, shape.fontSize + 20);
+            } else if (shape.type === "brush") {
+                // Untuk brush, cari bounding box dari semua titik
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                shape.points.forEach(point => {
+                    minX = Math.min(minX, point.x);
+                    minY = Math.min(minY, point.y);
+                    maxX = Math.max(maxX, point.x);
+                    maxY = Math.max(maxY, point.y);
+                });
+                
+                // Gambar kotak putus-putus di sekitar brush path dengan padding
+                const padding = 10;
+                ctx.strokeRect(minX - padding, minY - padding, 
+                              (maxX - minX) + padding * 2, 
+                              (maxY - minY) + padding * 2);
+            }
+            
+            // Reset line dash
+            ctx.setLineDash([]);
         }
         
         // Kembalikan state konteks setelah menggambar
@@ -415,6 +482,9 @@ canvas.addEventListener("mousedown", (e) => {
             shapes.push(shape);
         }
     }
+    
+    // Redraw shapes to show selection
+    drawAllShapes();
 });
 
 canvas.addEventListener("mousemove", (e) => {
@@ -545,6 +615,7 @@ colorPicker.addEventListener("change", () => {
 clearCanvas.addEventListener("click", () => {
     shapes = [];
     doubleTappedShape = null; // Reset juga shape yang di-double tap saat clear canvas
+    currentShape = null; // Reset currentShape saat clear canvas
     drawAllShapes();
 });
 saveImg.addEventListener("click", () => {
@@ -618,3 +689,23 @@ document.addEventListener("keydown", (event) => {
 
     drawAllShapes();
 });
+
+// Fungsi untuk mengaktifkan atau menonaktifkan tools 2D
+function toggleTools2D(enabled) {
+    const toolsBoard = document.querySelector(".tools-board");
+    const inputs = toolsBoard.querySelectorAll("input, button");
+    const options = toolsBoard.querySelectorAll(".option");
+    
+    if (enabled) {
+        toolsBoard.classList.remove("disabled");
+        inputs.forEach(input => input.disabled = false);
+        options.forEach(option => option.style.pointerEvents = "auto");
+    } else {
+        toolsBoard.classList.add("disabled");
+        inputs.forEach(input => input.disabled = true);
+        options.forEach(option => option.style.pointerEvents = "none");
+    }
+}
+
+// Export fungsi toggle tools untuk digunakan di script3D.js
+window.toggleTools2D = toggleTools2D;
