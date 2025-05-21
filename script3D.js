@@ -1,4 +1,3 @@
-
 // Variabel global untuk Three.js
 let animationId = null;
 let isAnimating = true;
@@ -10,8 +9,15 @@ let isScaling = false;
 let initialDistance = 0;
 let objectScale = 1;
 let currentShapeType = "cube"; // Menyimpan bentuk objek yang sedang aktif
+let is3DMode = false; // Flag untuk melacak mode 3D
 
 document.getElementById("open-3d").addEventListener("click", () => {
+    // Set flag mode 3D
+    is3DMode = true;
+    
+    // Disable 2D tools
+    disableTools(true);
+    
     // Tampilkan canvas 3D
     document.querySelector(".drawing-board").style.display = "none";
     const container = document.getElementById("three-canvas-container");
@@ -133,12 +139,50 @@ document.getElementById("open-3d").addEventListener("click", () => {
     canvas.addEventListener('touchmove', onTouchMove, { passive: false });
     canvas.addEventListener('touchend', onTouchEnd);
     
-    // Keyboard events untuk menggeser objek
-    window.addEventListener('keydown', onKeyDown);
+    // Aktifkan keyboard events untuk menggeser objek
+    document.addEventListener('keydown', onKeyDown);
     
     // Mulai animasi
     animate();
 });
+
+// Fungsi untuk disable atau enable tools
+function disableTools(disable) {
+    // Disable semua tool buttons
+    const toolBtns = document.querySelectorAll(".tool");
+    toolBtns.forEach(btn => {
+        if (disable) {
+            btn.style.opacity = "0.5";
+            btn.style.pointerEvents = "none";
+        } else {
+            btn.style.opacity = "1";
+            btn.style.pointerEvents = "auto";
+        }
+    });
+    
+    // Disable inputs dan controls lainnya
+    const inputs = document.querySelectorAll(".tools-board input");
+    inputs.forEach(input => {
+        input.disabled = disable;
+        if (disable) {
+            input.style.opacity = "0.5";
+        } else {
+            input.style.opacity = "1";
+        }
+    });
+    
+    // Disable buttons except "Menu 3D" when in 3D mode and "Kembali ke 2D" when in 2D mode
+    const buttons = document.querySelectorAll(".tools-board button:not(#open-3d):not(#back-to-2d)");
+    buttons.forEach(button => {
+        if (disable) {
+            button.style.opacity = "0.5";
+            button.style.pointerEvents = "none";
+        } else {
+            button.style.opacity = "1";
+            button.style.pointerEvents = "auto";
+        }
+    });
+}
 
 function animate() {
     animationId = requestAnimationFrame(animate);
@@ -293,10 +337,10 @@ function onTouchEnd(event) {
 }
 
 function onKeyDown(event) {
-    // Hanya berfungsi jika animasi dihentikan
-    if (isAnimating || !currentObject) return;
+    // Verifikasi bahwa kita berada dalam mode 3D dan animasi dihentikan
+    if (!is3DMode || isAnimating || !currentObject) return;
     
-    const moveDistance = 0.1; // Jarak pergeseran (bisa diubah sesuai kebutuhan)
+    const moveDistance = 0.1; // Jarak pergeseran
     
     switch(event.key) {
         case "ArrowLeft":
@@ -330,6 +374,9 @@ function onKeyDown(event) {
             currentObject.position.z += moveDistance;
             break;
     }
+    
+    // Debug untuk memverifikasi event keyboard terdeteksi
+    console.log("3D Keyboard event:", event.key);
 }
 
 function createShape(shapeType) {
@@ -545,6 +592,12 @@ function changeShape(shapeType) {
 }
 
 document.getElementById("back-to-2d").addEventListener("click", () => {
+    // Reset flag mode 3D
+    is3DMode = false;
+    
+    // Enable kembali 2D tools
+    disableTools(false);
+    
     document.querySelector(".drawing-board").style.display = "block";
     document.getElementById("three-canvas-container").style.display = "none";
     document.getElementById("back-to-2d").style.display = "none";
@@ -556,9 +609,10 @@ document.getElementById("back-to-2d").addEventListener("click", () => {
     const controlsInfo = document.getElementById("controls-info");
     if (controlsInfo) controlsInfo.style.display = "none";
     
+    // Sembunyikan shape selector juga
+    const shapeSelector = document.getElementById("shape-selector");
+    if (shapeSelector) shapeSelector.style.display = "none";
+    
     // Reset status animasi
     isAnimating = true;
-    
-    // Hapus event listener keyboard saat kembali ke 2D
-    window.removeEventListener('keydown', onKeyDown);
 });
