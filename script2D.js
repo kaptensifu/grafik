@@ -1,4 +1,4 @@
-// Modify script2D.js to add dashed outline for selected objects
+// Fixed script2D.js - now handles resize properly after rotation
 
 const canvas = document.querySelector("canvas"),
     toolBtns = document.querySelectorAll(".tool"),
@@ -27,9 +27,8 @@ let isDrawing = false,
     dragOffsetX = 0,
     dragOffsetY = 0,
     resizeStart = { x: 0, y: 0 },
-    doubleTappedShape = null; // Menambahkan variabel untuk shape yang di-double tap
+    doubleTappedShape = null;
 
-// Menambahkan variabel untuk menyimpan waktu double tap
 let lastTap = 0;
 
 window.addEventListener("load", () => {
@@ -37,6 +36,50 @@ window.addEventListener("load", () => {
     canvas.height = canvas.offsetHeight;
     drawAllShapes();
 });
+
+// Helper function to transform point considering rotation
+function transformPoint(x, y, centerX, centerY, rotation) {
+    if (!rotation) return { x, y };
+    
+    const cos = Math.cos(rotation * Math.PI / 180);
+    const sin = Math.sin(rotation * Math.PI / 180);
+    
+    // Translate to origin
+    const translatedX = x - centerX;
+    const translatedY = y - centerY;
+    
+    // Apply rotation
+    const rotatedX = translatedX * cos - translatedY * sin;
+    const rotatedY = translatedX * sin + translatedY * cos;
+    
+    // Translate back
+    return {
+        x: rotatedX + centerX,
+        y: rotatedY + centerY
+    };
+}
+
+// Helper function to inverse transform point (for mouse coordinates)
+function inverseTransformPoint(x, y, centerX, centerY, rotation) {
+    if (!rotation) return { x, y };
+    
+    const cos = Math.cos(-rotation * Math.PI / 180);
+    const sin = Math.sin(-rotation * Math.PI / 180);
+    
+    // Translate to origin
+    const translatedX = x - centerX;
+    const translatedY = y - centerY;
+    
+    // Apply inverse rotation
+    const rotatedX = translatedX * cos - translatedY * sin;
+    const rotatedY = translatedX * sin + translatedY * cos;
+    
+    // Translate back
+    return {
+        x: rotatedX + centerX,
+        y: rotatedY + centerY
+    };
+}
 
 function drawAllShapes() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -120,97 +163,29 @@ function drawAllShapes() {
                 break;
         }
 
-        // Menampilkan tanda untuk shape yang di-double tap
-        if (shape === doubleTappedShape) {
-            ctx.strokeStyle = "red";
-            ctx.lineWidth = 2;
+        // Kembalikan state konteks setelah menggambar shape utama
+        ctx.restore();
 
-            if (shape.type === "diamond") {
-                const halfWidth = shape.width / 2;
-                const halfHeight = shape.height / 2;
-                
-                ctx.beginPath();
-                ctx.moveTo(shape.x, shape.y - halfHeight - 5); // Titik atas
-                ctx.lineTo(shape.x + halfWidth + 5, shape.y); // Titik kanan
-                ctx.lineTo(shape.x, shape.y + halfHeight + 5); // Titik bawah
-                ctx.lineTo(shape.x - halfWidth - 5, shape.y); // Titik kiri
-                ctx.closePath();
-                ctx.stroke();
-
-                // Tambahkan titik-titik di sudut
-                ctx.fillStyle = "red";
-                ctx.fillRect(shape.x - 5, shape.y - halfHeight - 5, 10, 10); // top
-                ctx.fillRect(shape.x + halfWidth - 5, shape.y - 5, 10, 10); // right
-                ctx.fillRect(shape.x - 5, shape.y + halfHeight - 5, 10, 10); // bottom
-                ctx.fillRect(shape.x - halfWidth - 5, shape.y - 5, 10, 10); // left
-            } else if (shape.type === "hexagon") {
-                const radius = shape.radius + 5;
-                ctx.beginPath();
-                for (let i = 0; i < 6; i++) {
-                    const angle = (Math.PI / 3) * i;
-                    const xPos = shape.x + radius * Math.cos(angle);
-                    const yPos = shape.y + radius * Math.sin(angle);
-                    
-                    if (i === 0) {
-                        ctx.moveTo(xPos, yPos);
-                    } else {
-                        ctx.lineTo(xPos, yPos);
-                    }
-                }
-                ctx.closePath();
-                ctx.stroke();
-
-                // Tambahkan titik di pusat hexagon
-                ctx.fillStyle = "red";
-                ctx.beginPath();
-                ctx.arc(shape.x, shape.y, 5, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (shape.type === "right-triangle") {
-                ctx.beginPath();
-                ctx.moveTo(shape.x - 5, shape.y - 5); // Titik awal
-                ctx.lineTo(shape.x2 + 5, shape.y2 + 5); // Titik kedua
-                ctx.lineTo(shape.x - 5, shape.y2 + 5); // Titik ketiga
-                ctx.closePath();
-                ctx.stroke();
-
-                // Tambahkan titik di setiap sudut
-                ctx.fillStyle = "red";
-                ctx.fillRect(shape.x - 5, shape.y - 5, 10, 10); // sudut siku-siku
-                ctx.fillRect(shape.x2 - 5, shape.y2 - 5, 10, 10); // sudut kanan
-                ctx.fillRect(shape.x - 5, shape.y2 - 5, 10, 10); // sudut bawah
-            } else if (shape.type === "text") {
-                ctx.font = `${shape.fontSize}px Arial`;
-                const textWidth = ctx.measureText(shape.text).width;
-                ctx.strokeRect(shape.x - 5, shape.y - shape.fontSize - 5, textWidth + 10, shape.fontSize + 10);
-
-                // Tambahkan titik di sudut
-                ctx.fillStyle = "red";
-                ctx.fillRect(shape.x - 5, shape.y - shape.fontSize - 5, 10, 10); // top-left
-            } else if (shape.type === "brush") {
-                // Untuk brush, tandai titik awal dan akhir
-                ctx.fillStyle = "red";
-                ctx.beginPath();
-                ctx.arc(shape.points[0].x, shape.points[0].y, 5, 0, Math.PI * 2);
-                ctx.fill();
-
-                ctx.beginPath();
-                ctx.arc(shape.points[shape.points.length - 1].x, shape.points[shape.points.length - 1].y, 5, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        }
-
+        
         // Menampilkan kotak biru kanan bawah untuk shape yang dipilih
         if (shape === currentShape) {
             ctx.fillStyle = "blue";
+            
+            // Calculate resize handle position considering rotation
+            let resizeHandlePos;
             if (shape.type === "diamond") {
                 const halfWidth = shape.width / 2;
-                ctx.fillRect(shape.x + halfWidth - 5, shape.y - 5, 10, 10);
+                resizeHandlePos = transformPoint(shape.x + halfWidth, shape.y, shape.x, shape.y, shape.rotation);
             } else if (shape.type === "hexagon") {
-                ctx.fillRect(shape.x + shape.radius - 5, shape.y - 5, 10, 10);
+                resizeHandlePos = transformPoint(shape.x + shape.radius, shape.y, shape.x, shape.y, shape.rotation);
             } else if (shape.type === "right-triangle") {
-                ctx.fillRect(shape.x2 - 5, shape.y2 - 5, 10, 10);
+                resizeHandlePos = transformPoint(shape.x2, shape.y2, shape.x, shape.y, shape.rotation);
             } else if (shape.type === "text") {
-                ctx.fillRect(shape.x - 5, shape.y - shape.fontSize, 10, 10);
+                resizeHandlePos = transformPoint(shape.x, shape.y - shape.fontSize, shape.x, shape.y, shape.rotation);
+            }
+            
+            if (resizeHandlePos) {
+                ctx.fillRect(resizeHandlePos.x - 5, resizeHandlePos.y - 5, 10, 10);
             }
 
             // Tambahkan kotak putus-putus di sekitar objek yang dipilih
@@ -218,45 +193,68 @@ function drawAllShapes() {
             ctx.lineWidth = 2;
             ctx.setLineDash([5, 3]); // Pola garis putus-putus
 
-            // Gambar kotak putus-putus sesuai tipe shape
+            // Gambar kotak putus-putus sesuai tipe shape dengan rotasi
             if (shape.type === "diamond") {
                 const halfWidth = shape.width / 2 + 10;
                 const halfHeight = shape.height / 2 + 10;
                 
+                const corners = [
+                    transformPoint(shape.x, shape.y - halfHeight, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x + halfWidth, shape.y, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x, shape.y + halfHeight, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x - halfWidth, shape.y, shape.x, shape.y, shape.rotation)
+                ];
+                
                 ctx.beginPath();
-                ctx.moveTo(shape.x, shape.y - halfHeight); // Titik atas
-                ctx.lineTo(shape.x + halfWidth, shape.y); // Titik kanan
-                ctx.lineTo(shape.x, shape.y + halfHeight); // Titik bawah
-                ctx.lineTo(shape.x - halfWidth, shape.y); // Titik kiri
+                ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(corner => ctx.lineTo(corner.x, corner.y));
                 ctx.closePath();
                 ctx.stroke();
             } else if (shape.type === "hexagon") {
                 const radius = shape.radius + 10;
-                ctx.beginPath();
+                const corners = [];
                 for (let i = 0; i < 6; i++) {
                     const angle = (Math.PI / 3) * i;
-                    const xPos = shape.x + radius * Math.cos(angle);
-                    const yPos = shape.y + radius * Math.sin(angle);
-                    
-                    if (i === 0) {
-                        ctx.moveTo(xPos, yPos);
-                    } else {
-                        ctx.lineTo(xPos, yPos);
-                    }
+                    corners.push(transformPoint(
+                        shape.x + radius * Math.cos(angle),
+                        shape.y + radius * Math.sin(angle),
+                        shape.x, shape.y, shape.rotation
+                    ));
                 }
+                
+                ctx.beginPath();
+                ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(corner => ctx.lineTo(corner.x, corner.y));
                 ctx.closePath();
                 ctx.stroke();
             } else if (shape.type === "right-triangle") {
+                const corners = [
+                    transformPoint(shape.x - 10, shape.y - 10, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x2 + 10, shape.y2 + 10, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x - 10, shape.y2 + 10, shape.x, shape.y, shape.rotation)
+                ];
+                
                 ctx.beginPath();
-                ctx.moveTo(shape.x - 10, shape.y - 10); // Titik awal
-                ctx.lineTo(shape.x2 + 10, shape.y2 + 10); // Titik kedua
-                ctx.lineTo(shape.x - 10, shape.y2 + 10); // Titik ketiga
+                ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(corner => ctx.lineTo(corner.x, corner.y));
                 ctx.closePath();
                 ctx.stroke();
             } else if (shape.type === "text") {
                 ctx.font = `${shape.fontSize}px Arial`;
                 const textWidth = ctx.measureText(shape.text).width;
-                ctx.strokeRect(shape.x - 10, shape.y - shape.fontSize - 10, textWidth + 20, shape.fontSize + 20);
+                
+                const corners = [
+                    transformPoint(shape.x - 10, shape.y - shape.fontSize - 10, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x + textWidth + 10, shape.y - shape.fontSize - 10, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x + textWidth + 10, shape.y + 10, shape.x, shape.y, shape.rotation),
+                    transformPoint(shape.x - 10, shape.y + 10, shape.x, shape.y, shape.rotation)
+                ];
+                
+                ctx.beginPath();
+                ctx.moveTo(corners[0].x, corners[0].y);
+                corners.forEach(corner => ctx.lineTo(corner.x, corner.y));
+                ctx.closePath();
+                ctx.stroke();
             } else if (shape.type === "brush") {
                 // Untuk brush, cari bounding box dari semua titik
                 let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -278,27 +276,26 @@ function drawAllShapes() {
             // Reset line dash
             ctx.setLineDash([]);
         }
-        
-        // Kembalikan state konteks setelah menggambar
-        ctx.restore();
     }
 }
-
 
 function getShapeAt(x, y) {
     for (let i = shapes.length - 1; i >= 0; i--) {
         const s = shapes[i];
+        
+        // Transform mouse coordinates to shape's local coordinate system
+        const localPoint = inverseTransformPoint(x, y, s.x, s.y, s.rotation);
+        
         if (s.type === "diamond") {
-            // Resize handle check
+            // Check resize handle first (using transformed coordinates)
             const halfWidth = s.width / 2;
-            const halfHeight = s.height / 2;
-            if (x >= s.x + halfWidth - 5 && x <= s.x + halfWidth + 5 &&
-                y >= s.y - 5 && y <= s.y + 5) {
+            const handlePos = transformPoint(s.x + halfWidth, s.y, s.x, s.y, s.rotation);
+            if (Math.abs(x - handlePos.x) <= 5 && Math.abs(y - handlePos.y) <= 5) {
                 return { shape: s, index: i, resize: true };
             }
             
-            // Check if point is inside diamond
-            // Menggunakan cross-product untuk memeriksa apakah titik berada di dalam belah ketupat
+            // Check if point is inside diamond (using local coordinates)
+            const halfHeight = s.height / 2;
             const points = [
                 { x: s.x, y: s.y - halfHeight },
                 { x: s.x + halfWidth, y: s.y },
@@ -306,13 +303,13 @@ function getShapeAt(x, y) {
                 { x: s.x - halfWidth, y: s.y }
             ];
             
-            if (isPointInPolygon(x, y, points)) {
+            if (isPointInPolygon(localPoint.x, localPoint.y, points)) {
                 return { shape: s, index: i };
             }
         } else if (s.type === "hexagon") {
-            // Resize handle check
-            if (x >= s.x + s.radius - 5 && x <= s.x + s.radius + 5 &&
-                y >= s.y - 5 && y <= s.y + 5) {
+            // Check resize handle first
+            const handlePos = transformPoint(s.x + s.radius, s.y, s.x, s.y, s.rotation);
+            if (Math.abs(x - handlePos.x) <= 5 && Math.abs(y - handlePos.y) <= 5) {
                 return { shape: s, index: i, resize: true };
             }
             
@@ -326,14 +323,13 @@ function getShapeAt(x, y) {
                 });
             }
             
-            if (isPointInPolygon(x, y, points)) {
+            if (isPointInPolygon(localPoint.x, localPoint.y, points)) {
                 return { shape: s, index: i };
             }
         } else if (s.type === "right-triangle") {
-            // Resize handle check
-            const dx = x - s.x2;
-            const dy = y - s.y2;
-            if (Math.abs(dx) <= 10 && Math.abs(dy) <= 10) {
+            // Check resize handle first
+            const handlePos = transformPoint(s.x2, s.y2, s.x, s.y, s.rotation);
+            if (Math.abs(x - handlePos.x) <= 10 && Math.abs(y - handlePos.y) <= 10) {
                 return { shape: s, index: i, resize: true };
             }
             
@@ -344,20 +340,18 @@ function getShapeAt(x, y) {
                 { x: s.x, y: s.y2 }
             ];
             
-            if (isPointInPolygon(x, y, points)) {
+            if (isPointInPolygon(localPoint.x, localPoint.y, points)) {
                 return { shape: s, index: i };
             }
         } else if (s.type === "text") {
             ctx.font = `${s.fontSize}px Arial`;
             const textWidth = ctx.measureText(s.text).width;
-            if (x >= s.x && x <= s.x + textWidth && y >= s.y - s.fontSize && y <= s.y) {
+            if (localPoint.x >= s.x && localPoint.x <= s.x + textWidth && 
+                localPoint.y >= s.y - s.fontSize && localPoint.y <= s.y) {
                 return { shape: s, index: i };
             }
         } else if (s.type === "brush") {
             // Peningkatan deteksi untuk brush - cek jalur brush dengan toleransi lebih tinggi
-            let detected = false;
-
-            // Jika brush, cek semua titik dengan toleransi yang lebih besar
             for (let j = 0; j < s.points.length; j++) {
                 const point = s.points[j];
                 const dx = x - point.x;
@@ -374,7 +368,6 @@ function getShapeAt(x, y) {
                     const nextPoint = s.points[j + 1];
 
                     // Cek apakah point berada dekat dengan garis antara dua titik
-                    // Menggunakan algoritma distance point to line segment
                     const lineLength = Math.sqrt(
                         Math.pow(nextPoint.x - point.x, 2) +
                         Math.pow(nextPoint.y - point.y, 2)
@@ -491,17 +484,29 @@ canvas.addEventListener("mousemove", (e) => {
     const x = e.offsetX, y = e.offsetY;
 
     if (resizing && currentShape) {
+        // Transform mouse coordinates to local coordinate system for resize
+        const localStart = inverseTransformPoint(resizeStart.x, resizeStart.y, currentShape.x, currentShape.y, currentShape.rotation);
+        const localCurrent = inverseTransformPoint(x, y, currentShape.x, currentShape.y, currentShape.rotation);
+        
         if (currentShape.type === "diamond") {
-            currentShape.width = (x - currentShape.x) * 2;
-            currentShape.height = (y - currentShape.y) * 2;
+            const deltaX = localCurrent.x - localStart.x;
+            const deltaY = localCurrent.y - localStart.y;
+            currentShape.width = Math.max(10, currentShape.width + deltaX * 2);
+            currentShape.height = Math.max(10, currentShape.height + deltaY * 2);
         } else if (currentShape.type === "hexagon") {
-            const dx = x - currentShape.x;
-            const dy = y - currentShape.y;
-            currentShape.radius = Math.sqrt(dx * dx + dy * dy);
+            const dx = localCurrent.x - currentShape.x;
+            const dy = localCurrent.y - currentShape.y;
+            currentShape.radius = Math.max(5, Math.sqrt(dx * dx + dy * dy));
         } else if (currentShape.type === "right-triangle") {
-            currentShape.x2 = x;
-            currentShape.y2 = y;
+            // For triangle, we need to handle it differently since it has x2, y2
+            const globalCurrent = { x, y };
+            currentShape.x2 = globalCurrent.x;
+            currentShape.y2 = globalCurrent.y;
         }
+        
+        // Update resize start position
+        resizeStart.x = x;
+        resizeStart.y = y;
         drawAllShapes();
         return;
     }
@@ -554,28 +559,7 @@ canvas.addEventListener("mouseup", () => {
     // Jangan reset currentShape di sini supaya bisa dihapus dengan delete selected
 });
 
-// Event listener untuk double tap/double click
-canvas.addEventListener("dblclick", (e) => {
-    const x = e.offsetX, y = e.offsetY;
-    const found = getShapeAt(x, y);
 
-    if (found) {
-        // Set currentShape ke shape yang ditemukan untuk memungkinkan penghapusan
-        currentShape = found.shape;
-
-        // Toggle doubleTappedShape: jika shape yang sama diklik lagi, hapus highlight
-        if (doubleTappedShape === found.shape) {
-            doubleTappedShape = null;
-        } else {
-            doubleTappedShape = found.shape; // Set doubleTappedShape ke shape yang di-double tap
-        }
-
-        console.log("Double-clicked shape:", found.shape.type);
-        console.log("Current shape set:", currentShape ? currentShape.type : "none");
-
-        drawAllShapes(); // Gambar ulang dengan highlight
-    }
-});
 
 // Menghapus shape yang dipilih
 deleteSelectedBtn.addEventListener("click", () => {
@@ -635,13 +619,15 @@ addTextBtn.addEventListener("click", () => {
             text: textInput.value,
             fontSize: parseInt(textSizeInput.value) || 16, // Get font size from input
             color: selectedColor,
-            lineWidth: brushWidth
+            lineWidth: brushWidth,
+            rotation: 0 // Tambahkan property rotation
         };
         shapes.push(shape);
         textInput.value = ""; // Clear input after adding text
         drawAllShapes();
     }
 });
+
 rotateLeftBtn.addEventListener("click", () => {
     if (currentShape) {
         if (currentShape.rotation === undefined) {
